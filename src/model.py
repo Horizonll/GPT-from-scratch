@@ -121,7 +121,6 @@ class MultiHeadAttention(nn.Module):
         self.nhead = nhead
         self.d_k = d_model // nhead
 
-        # 定义投影矩阵，同时处理Q、K、V的线性变换
         self.W_q = nn.Linear(d_model, d_model, bias=False)
         self.W_k = nn.Linear(d_model, d_model, bias=False)
         self.W_v = nn.Linear(d_model, d_model, bias=False)
@@ -132,35 +131,28 @@ class MultiHeadAttention(nn.Module):
     def forward(self, query, key, value, mask=None):
         batch_size = query.size(1)
 
-        # 线性投影并分离多头
         # [seq_len, batch, d_model] -> [seq_len, batch, nhead, d_k] -> [nhead, seq_len, batch, d_k]
         q = self.W_q(query).view(-1, batch_size, self.nhead, self.d_k).transpose(0, 2)
         k = self.W_k(key).view(-1, batch_size, self.nhead, self.d_k).transpose(0, 2)
         v = self.W_v(value).view(-1, batch_size, self.nhead, self.d_k).transpose(0, 2)
 
-        # 注意力计算
         # [nhead, seq_len_q, batch, d_k] × [nhead, seq_len_k, batch, d_k] -> [nhead, seq_len_q, batch, seq_len_k]
         scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(self.d_k)
 
-        # 应用掩码
         if mask is not None:
             scores = scores.masked_fill(mask == float("-inf"), float("-inf"))
 
-        # 获取注意力权重并应用dropout
         attn_weights = torch.softmax(scores, dim=-1)
         attn_weights = self.dropout(attn_weights)
 
-        # 应用注意力权重
         # [nhead, seq_len_q, batch, seq_len_k] × [nhead, seq_len_v, batch, d_k] -> [nhead, seq_len_q, batch, d_k]
         context = torch.matmul(attn_weights, v)
 
-        # 合并多头的结果
         # [nhead, seq_len, batch, d_k] -> [seq_len, batch, nhead, d_k] -> [seq_len, batch, d_model]
         context = (
             context.transpose(0, 2).contiguous().view(-1, batch_size, self.d_model)
         )
 
-        # 最终的线性层
         output = self.W_o(context)
 
         return output
@@ -206,12 +198,10 @@ class TransformerEncoderLayer(nn.Module):
         self.dropout2 = nn.Dropout(dropout)
 
     def forward(self, src, src_mask=None):
-        # 自注意力层
         attn_output = self.self_attn(src, src, src, src_mask)
         src = src + self.dropout1(attn_output)
         src = self.norm1(src)
 
-        # 前馈网络层
         ff_output = self.feed_forward(src)
         src = src + self.dropout2(ff_output)
         src = self.norm2(src)
@@ -245,7 +235,6 @@ class LMModel_transformer(nn.Module):
         self.encoder = nn.Embedding(nvoc, dim)
         # WRITE CODE HERE witnin two '#' bar
         ########################################
-        # 构建手动实现的Transformer模型
         self.dim = dim
         self.pos_encoder = PositionalEncoding(dim, dropout=0.1)
 
