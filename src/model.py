@@ -1,4 +1,5 @@
 import math
+import copy
 import torch
 import torch.nn as nn
 
@@ -111,29 +112,149 @@ class PositionalEncoding(nn.Module):
         return self.dropout(x)
 
 
+class MultiHeadAttention(nn.Module):
+    def __init__(self, d_model, nhead, dropout=0.1):
+        super(MultiHeadAttention, self).__init__()
+        assert d_model % nhead == 0
+
+        self.d_model = d_model
+        self.nhead = nhead
+        self.d_k = d_model // nhead
+
+        # 定义投影矩阵，同时处理Q、K、V的线性变换
+        self.W_q = nn.Linear(d_model, d_model, bias=False)
+        self.W_k = nn.Linear(d_model, d_model, bias=False)
+        self.W_v = nn.Linear(d_model, d_model, bias=False)
+        self.W_o = nn.Linear(d_model, d_model, bias=False)
+
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, query, key, value, mask=None):
+        batch_size = query.size(1)
+
+        # 线性投影并分离多头
+        # [seq_len, batch, d_model] -> [seq_len, batch, nhead, d_k] -> [nhead, seq_len, batch, d_k]
+        q = self.W_q(query).view(-1, batch_size, self.nhead, self.d_k).transpose(0, 2)
+        k = self.W_k(key).view(-1, batch_size, self.nhead, self.d_k).transpose(0, 2)
+        v = self.W_v(value).view(-1, batch_size, self.nhead, self.d_k).transpose(0, 2)
+
+        # 注意力计算
+        # [nhead, seq_len_q, batch, d_k] × [nhead, seq_len_k, batch, d_k] -> [nhead, seq_len_q, batch, seq_len_k]
+        scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(self.d_k)
+
+        # 应用掩码
+        if mask is not None:
+            scores = scores.masked_fill(mask == float("-inf"), float("-inf"))
+
+        # 获取注意力权重并应用dropout
+        attn_weights = torch.softmax(scores, dim=-1)
+        attn_weights = self.dropout(attn_weights)
+
+        # 应用注意力权重
+        # [nhead, seq_len_q, batch, seq_len_k] × [nhead, seq_len_v, batch, d_k] -> [nhead, seq_len_q, batch, d_k]
+        context = torch.matmul(attn_weights, v)
+
+        # 合并多头的结果
+        # [nhead, seq_len, batch, d_k] -> [seq_len, batch, nhead, d_k] -> [seq_len, batch, d_model]
+        context = (
+            context.transpose(0, 2).contiguous().view(-1, batch_size, self.d_model)
+        )
+
+        # 最终的线性层
+        output = self.W_o(context)
+
+        return output
+
+
+class PositionwiseFeedForward(nn.Module):
+    def __init__(self, d_model, d_ff, dropout=0.1):
+        super(PositionwiseFeedForward, self).__init__()
+        self.w_1 = nn.Linear(d_model, d_ff)
+        self.w_2 = nn.Linear(d_ff, d_model)
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x):
+        # [seq_len, batch, d_model] -> [seq_len, batch, d_ff] -> [seq_len, batch, d_model]
+        return self.w_2(self.dropout(torch.relu(self.w_1(x))))
+
+
+class LayerNorm(nn.Module):
+    def __init__(self, d_model, eps=1e-6):
+        super(LayerNorm, self).__init__()
+        self.a_2 = nn.Parameter(torch.ones(d_model))
+        self.b_2 = nn.Parameter(torch.zeros(d_model))
+        self.eps = eps
+
+    def forward(self, x):
+        # x: [seq_len, batch, d_model]
+        mean = x.mean(-1, keepdim=True)
+        std = x.std(-1, keepdim=True)
+        return self.a_2 * (x - mean) / (std + self.eps) + self.b_2
+
+
+class TransformerEncoderLayer(nn.Module):
+    def __init__(self, d_model, nhead, dim_feedforward, dropout=0.1):
+        super(TransformerEncoderLayer, self).__init__()
+
+        self.self_attn = MultiHeadAttention(d_model, nhead, dropout)
+        self.feed_forward = PositionwiseFeedForward(d_model, dim_feedforward, dropout)
+
+        self.norm1 = LayerNorm(d_model)
+        self.norm2 = LayerNorm(d_model)
+
+        self.dropout1 = nn.Dropout(dropout)
+        self.dropout2 = nn.Dropout(dropout)
+
+    def forward(self, src, src_mask=None):
+        # 自注意力层
+        attn_output = self.self_attn(src, src, src, src_mask)
+        src = src + self.dropout1(attn_output)
+        src = self.norm1(src)
+
+        # 前馈网络层
+        ff_output = self.feed_forward(src)
+        src = src + self.dropout2(ff_output)
+        src = self.norm2(src)
+
+        return src
+
+
+class TransformerEncoder(nn.Module):
+    def __init__(self, encoder_layer, num_layers):
+        super(TransformerEncoder, self).__init__()
+        self.layers = nn.ModuleList(
+            [copy.deepcopy(encoder_layer) for _ in range(num_layers)]
+        )
+        self.norm = LayerNorm(encoder_layer.feed_forward.w_2.out_features)
+
+    def forward(self, src, mask=None):
+        output = src
+        for layer in self.layers:
+            output = layer(output, mask)
+        return self.norm(output)
+
+
 class LMModel_transformer(nn.Module):
-    # Language model is composed of three parts: a word embedding layer, a rnn network and a output layer.
-    # The word embedding layer have input as a sequence of word index (in the vocabulary) and output a sequence of vector where each one is a word embedding.
-    # The rnn network has input of each word embedding and output a hidden feature corresponding to each word embedding.
-    # The output layer has input as the hidden feature and output the probability of each word in the vocabulary.
+    # Language model is composed of three parts: a word embedding layer, a transformer network and an output layer.
+    # The word embedding layer has input as a sequence of word indices (in the vocabulary) and outputs a sequence of vectors where each one is a word embedding.
+    # The transformer network has input of each word embedding and outputs a hidden feature corresponding to each word embedding.
+    # The output layer has input as the hidden feature and outputs the probability of each word in the vocabulary.
     def __init__(self, nvoc, dim=256, nhead=8, num_layers=4):
         super(LMModel_transformer, self).__init__()
         self.drop = nn.Dropout(0.5)
         self.encoder = nn.Embedding(nvoc, dim)
         # WRITE CODE HERE witnin two '#' bar
         ########################################
-        # Construct you Transformer model here. You can add additional parameters to the function.
+        # 构建手动实现的Transformer模型
         self.dim = dim
         self.pos_encoder = PositionalEncoding(dim, dropout=0.1)
-        encoder_layers = nn.TransformerEncoderLayer(
-            d_model=dim,
-            nhead=nhead,
-            dim_feedforward=dim * 4,
-            dropout=0.1,
-            batch_first=False,
+
+        encoder_layer = TransformerEncoderLayer(
+            d_model=dim, nhead=nhead, dim_feedforward=dim * 4, dropout=0.1
         )
-        self.transformer_encoder = nn.TransformerEncoder(
-            encoder_layers, num_layers=num_layers
+
+        self.transformer_encoder = TransformerEncoder(
+            encoder_layer, num_layers=num_layers
         )
         ########################################
 

@@ -15,6 +15,8 @@ plot
 
 transformer: 346.8285
 
+new transformer: 335.8599
+
 lstm: 390.0218
 
 new lstm: 432.4815
@@ -29,6 +31,12 @@ transformer:
 
 ```
 a <unk> from an <unk> <unk> in <unk> and <unk> <eos> the <unk> <unk> <eos> in mr. baker said there was in <unk> but <unk> <eos> if <unk> there is n't a lot of us here with me for some people just have for the <unk> of them to read and he 's happy <eos> he 's that 's that we should take in a <unk> <eos> he is n't sure that it 's a small time in a thing that 's not <unk> a lot of <unk> and a <unk> says <unk> <unk> a <unk> university veteran of texas <eos>
+```
+
+new transformer:
+
+```
+speech from robert <unk> <unk> in <unk> calif. is conducting a <unk> <unk> <eos> in mr. <unk> said there was in a new <unk> <eos> if <unk> there is n't a lot of us here mr. <unk> says <eos> the fact that for the past three weeks that he has tried to sell N shares <eos> that 's that 's more than in order and just just a bit smaller from having <unk> <eos> he has done a lot a thing of <unk> a lot of <unk> at this point says <unk> <unk> a <unk> university veteran of texas <eos>
 ```
 
 lstm:
@@ -57,6 +65,12 @@ transformer:
 
 ```
 the meaning of life is <unk> from all <unk> <unk> with <unk> and <unk> <unk> <eos> the <unk> <eos> in mr. gelbart said there is in <unk> where <unk> <eos> if <unk> but what and they really want us to live together for some <unk> <unk> but for the <unk> of whom happened <eos> he also <unk> the <unk> <unk> <eos> that 's that we should be in a <unk> <eos> mr. gelbart 's <unk> from his <unk> <unk> he has done a man a <unk> <unk> of a <unk> <eos> there 's a <unk> says <unk> <unk> <unk> <unk> the most <unk> of the
+```
+
+new transformer:
+
+```
+extremely interesting but not good for <unk> and <unk> <eos> but there are more time to be a black activist in <unk> where <unk> <eos> if <unk> you want and they really want to have you you for somebody <eos> <unk> <unk> for national football <eos> in the third quarter he agreed to sell them <eos> that 's that 's more than seven others and have just <unk> <eos> if any <unk> <unk> is he has a way to make it more <unk> a lot of <unk> and one <unk> says <unk> <unk> a <unk> university sociologist who runs the <unk> <eos>
 ```
 
 lstm:
