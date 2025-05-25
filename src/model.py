@@ -173,7 +173,7 @@ class LMModel_LSTM(nn.Module):
     """
     LSTM-based language model:
     1) Embedding layer
-    2) LSTM network
+    2) LSTM network (manual implementation, no nn.LSTM)
     3) Output linear layer
     """
 
@@ -182,16 +182,109 @@ class LMModel_LSTM(nn.Module):
         self.drop = nn.Dropout(dropout)
         self.encoder = nn.Embedding(nvoc, dim)
         ########################################
-        # Construct your LSTM model here.
-        self.lstm = nn.LSTM(
-            input_size=dim,
-            hidden_size=hidden_size,
-            num_layers=num_layers,
-            dropout=dropout if num_layers > 1 else 0,
-            batch_first=False,
-        )
+        # Manual LSTM implementation
         self.hidden_size = hidden_size
+        self.input_size = dim
         self.num_layers = num_layers
+        self.dropout = dropout
+
+        self.W_ii = nn.ParameterList(
+            [
+                nn.Parameter(
+                    torch.Tensor(
+                        hidden_size, self.input_size if l == 0 else hidden_size
+                    )
+                )
+                for l in range(num_layers)
+            ]
+        )
+        self.W_hi = nn.ParameterList(
+            [
+                nn.Parameter(torch.Tensor(hidden_size, hidden_size))
+                for l in range(num_layers)
+            ]
+        )
+        self.b_ii = nn.ParameterList(
+            [nn.Parameter(torch.Tensor(hidden_size)) for l in range(num_layers)]
+        )
+        self.b_hi = nn.ParameterList(
+            [nn.Parameter(torch.Tensor(hidden_size)) for l in range(num_layers)]
+        )
+
+        self.W_if = nn.ParameterList(
+            [
+                nn.Parameter(
+                    torch.Tensor(
+                        hidden_size, self.input_size if l == 0 else hidden_size
+                    )
+                )
+                for l in range(num_layers)
+            ]
+        )
+        self.W_hf = nn.ParameterList(
+            [
+                nn.Parameter(torch.Tensor(hidden_size, hidden_size))
+                for l in range(num_layers)
+            ]
+        )
+        self.b_if = nn.ParameterList(
+            [nn.Parameter(torch.Tensor(hidden_size)) for l in range(num_layers)]
+        )
+        self.b_hf = nn.ParameterList(
+            [nn.Parameter(torch.Tensor(hidden_size)) for l in range(num_layers)]
+        )
+
+        self.W_io = nn.ParameterList(
+            [
+                nn.Parameter(
+                    torch.Tensor(
+                        hidden_size, self.input_size if l == 0 else hidden_size
+                    )
+                )
+                for l in range(num_layers)
+            ]
+        )
+        self.W_ho = nn.ParameterList(
+            [
+                nn.Parameter(torch.Tensor(hidden_size, hidden_size))
+                for l in range(num_layers)
+            ]
+        )
+        self.b_io = nn.ParameterList(
+            [nn.Parameter(torch.Tensor(hidden_size)) for l in range(num_layers)]
+        )
+        self.b_ho = nn.ParameterList(
+            [nn.Parameter(torch.Tensor(hidden_size)) for l in range(num_layers)]
+        )
+
+        self.W_ig = nn.ParameterList(
+            [
+                nn.Parameter(
+                    torch.Tensor(
+                        hidden_size, self.input_size if l == 0 else hidden_size
+                    )
+                )
+                for l in range(num_layers)
+            ]
+        )
+        self.W_hg = nn.ParameterList(
+            [
+                nn.Parameter(torch.Tensor(hidden_size, hidden_size))
+                for l in range(num_layers)
+            ]
+        )
+        self.b_ig = nn.ParameterList(
+            [nn.Parameter(torch.Tensor(hidden_size)) for l in range(num_layers)]
+        )
+        self.b_hg = nn.ParameterList(
+            [nn.Parameter(torch.Tensor(hidden_size)) for l in range(num_layers)]
+        )
+
+        self.dropouts = (
+            nn.ModuleList([nn.Dropout(dropout) for _ in range(num_layers - 1)])
+            if num_layers > 1
+            else None
+        )
         ########################################
         self.decoder = nn.Linear(hidden_size, nvoc)
         self.init_weights()
@@ -202,13 +295,113 @@ class LMModel_LSTM(nn.Module):
         self.decoder.bias.data.zero_()
         self.decoder.weight.data.uniform_(-init_uniform, init_uniform)
 
+        for l in range(self.num_layers):
+            nn.init.uniform_(self.W_ii[l], -init_uniform, init_uniform)
+            nn.init.uniform_(self.W_hi[l], -init_uniform, init_uniform)
+            nn.init.uniform_(self.b_ii[l], -init_uniform, init_uniform)
+            nn.init.uniform_(self.b_hi[l], -init_uniform, init_uniform)
+
+            nn.init.uniform_(self.W_if[l], -init_uniform, init_uniform)
+            nn.init.uniform_(self.W_hf[l], -init_uniform, init_uniform)
+            nn.init.uniform_(self.b_if[l], -init_uniform, init_uniform)
+            nn.init.uniform_(self.b_hf[l], -init_uniform, init_uniform)
+            self.b_if[l].data.fill_(1.0)
+            self.b_hf[l].data.fill_(1.0)
+
+            nn.init.uniform_(self.W_io[l], -init_uniform, init_uniform)
+            nn.init.uniform_(self.W_ho[l], -init_uniform, init_uniform)
+            nn.init.uniform_(self.b_io[l], -init_uniform, init_uniform)
+            nn.init.uniform_(self.b_ho[l], -init_uniform, init_uniform)
+
+            nn.init.uniform_(self.W_ig[l], -init_uniform, init_uniform)
+            nn.init.uniform_(self.W_hg[l], -init_uniform, init_uniform)
+            nn.init.uniform_(self.b_ig[l], -init_uniform, init_uniform)
+            nn.init.uniform_(self.b_hg[l], -init_uniform, init_uniform)
+
     def forward(self, input, hidden=None):
         # input shape: (seq_len, batch_size)
         embeddings = self.drop(self.encoder(input))  # (seq_len, batch, dim)
+        seq_len, batch_size, _ = embeddings.size()
 
         ########################################
-        # TODO: use your defined LSTM network
-        output, hidden = self.lstm(embeddings, hidden)
+        if hidden is None:
+            h_0 = [
+                embeddings.new_zeros(batch_size, self.hidden_size)
+                for _ in range(self.num_layers)
+            ]
+            c_0 = [
+                embeddings.new_zeros(batch_size, self.hidden_size)
+                for _ in range(self.num_layers)
+            ]
+            hidden = (h_0, c_0)
+        else:
+            h_0, c_0 = hidden
+            h_0 = [h for h in h_0]
+            c_0 = [c for c in c_0]
+
+        outputs = []
+        h_n, c_n = [], []
+
+        for t in range(seq_len):
+            x = embeddings[t]  # (batch, dim)
+            h_t, c_t = [], []
+
+            for l in range(self.num_layers):
+                h_prev = h_0[l]
+                c_prev = c_0[l]
+
+                i_t = torch.sigmoid(
+                    torch.matmul(x, self.W_ii[l].t())
+                    + self.b_ii[l]
+                    + torch.matmul(h_prev, self.W_hi[l].t())
+                    + self.b_hi[l]
+                )
+
+                f_t = torch.sigmoid(
+                    torch.matmul(x, self.W_if[l].t())
+                    + self.b_if[l]
+                    + torch.matmul(h_prev, self.W_hf[l].t())
+                    + self.b_hf[l]
+                )
+
+                o_t = torch.sigmoid(
+                    torch.matmul(x, self.W_io[l].t())
+                    + self.b_io[l]
+                    + torch.matmul(h_prev, self.W_ho[l].t())
+                    + self.b_ho[l]
+                )
+
+                g_t = torch.tanh(
+                    torch.matmul(x, self.W_ig[l].t())
+                    + self.b_ig[l]
+                    + torch.matmul(h_prev, self.W_hg[l].t())
+                    + self.b_hg[l]
+                )
+
+                c_next = f_t * c_prev + i_t * g_t
+
+                h_next = o_t * torch.tanh(c_next)
+
+                h_t.append(h_next)
+                c_t.append(c_next)
+
+                x = h_next
+
+                if l < self.num_layers - 1 and self.dropouts is not None:
+                    x = self.dropouts[l](x)
+
+            h_0 = h_t
+            c_0 = c_t
+
+            outputs.append(h_t[-1].unsqueeze(0))
+
+        output = torch.cat(outputs, dim=0)  # (seq_len, batch, hidden_size)
+
+        for l in range(self.num_layers):
+            h_n.append(h_0[l])
+            c_n.append(c_0[l])
+
+        hidden = (h_n, c_n)
         ########################################
 
         output = self.drop(output)

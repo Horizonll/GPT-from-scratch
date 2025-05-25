@@ -1,7 +1,3 @@
-"""
-Text generation: load trained model and generate text
-"""
-
 import argparse
 import torch
 import math
@@ -13,12 +9,12 @@ import data
 parser = argparse.ArgumentParser(description="Language Model Text Generation")
 parser.add_argument("--seed", type=int, default=1234, help="Random seed")
 parser.add_argument(
-    "--checkpoint", type=str, default="rnn_best_model.pt", help="Model checkpoint path"
+    "--checkpoint", type=str, default="lstm_best_model.pt", help="Model checkpoint path"
 )
 parser.add_argument(
     "--model_type",
     type=str,
-    default="rnn",
+    default="lstm",
     choices=["transformer", "rnn", "lstm"],
     help="Model type",
 )

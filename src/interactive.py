@@ -10,13 +10,13 @@ parser = argparse.ArgumentParser(
 parser.add_argument(
     "--checkpoint",
     type=str,
-    default="rnn_best_model.pt",
+    default="lstm_best_model.pt",
     help="Path to model checkpoint",
 )
 parser.add_argument(
     "--model_type",
     type=str,
-    default="rnn",
+    default="lstm",
     choices=["transformer", "rnn", "lstm"],
     help="Model type to use",
 )

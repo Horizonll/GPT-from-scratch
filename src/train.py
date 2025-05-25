@@ -32,7 +32,7 @@ parser.add_argument(
 parser.add_argument(
     "--model_type",
     type=str,
-    default="rnn",
+    default="lstm",
     choices=["transformer", "rnn", "lstm"],
     help="type of model to use",
 )
@@ -47,19 +47,14 @@ parser.add_argument(
 )
 parser.add_argument("--cuda", action="store_true", help="use CUDA device")
 parser.add_argument("--gpu_id", type=int, default=0, help="GPU device id used")
-
 args = parser.parse_args()
-
 torch.manual_seed(args.seed)
-
 use_gpu = True
-
 if use_gpu:
     torch.cuda.set_device(args.gpu_id)
     device = torch.device(args.gpu_id)
 else:
     device = torch.device("cpu")
-
 train_batch_size = args.train_batch_size
 eval_batch_size = args.eval_batch_size
 batch_size = {"train": train_batch_size, "valid": eval_batch_size}
@@ -96,12 +91,10 @@ optimizer = optim.Adam(model.parameters(), lr=args.lr)
 scheduler = optim.lr_scheduler.ReduceLROnPlateau(
     optimizer, "min", patience=2, factor=0.5
 )
-
 log_dir = os.path.join(
     "runs", f"{args.model_type}_{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}"
 )
 writer = SummaryWriter(log_dir)
-
 criterion = nn.CrossEntropyLoss()
 
 
@@ -111,7 +104,6 @@ def evaluate():
     model.eval()
     idx = 0
     avg_loss = 0
-    print(f"Validating")
     while not end_flag:
         with torch.no_grad():
             data, target, end_flag = data_loader.get_batch()
@@ -125,7 +117,6 @@ def evaluate():
             avg_loss += loss
             idx += 1
     avg_loss_value = avg_loss.item() / idx
-    print(f"The average loss is {avg_loss / idx}")
     return math.exp(avg_loss_value), avg_loss_value
 
 
@@ -148,8 +139,6 @@ def train():
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), args.clip)
         optimizer.step()
-        if (idx + 1) % 50 == 0:
-            print(f"The loss is {loss}")
         idx += 1
         avg_loss += loss
     avg_loss_value = avg_loss.item() / idx
@@ -165,7 +154,7 @@ patience_counter = 0
 
 for epoch in range(1, args.epochs + 1):
     epoch_start_time = time.time()
-    print(f"开始训练 epoch {epoch}")
+    print(f"epoch {epoch}")
 
     train_ppl, train_loss = train()
     train_perplexity.append(train_ppl)
@@ -196,21 +185,13 @@ for epoch in range(1, args.epochs + 1):
             },
             f"{args.model_type}_{args.save}",
         )
-        print(f"保存最佳模型，验证集困惑度: {valid_ppl:.2f}")
+        print(f"New best model saved with valid perplexity: {valid_ppl:.2f}")
         patience_counter = 0
     else:
         patience_counter += 1
 
     if patience_counter >= args.patience:
-        print(f"早停! {args.patience} 个epoch内验证集困惑度没有提升.")
+        print("Early stopping triggered.")
         break
-
-    print("-" * 89)
-    print(
-        f"| epoch {epoch:3d} | 用时 {time.time() - epoch_start_time:5.2f}s | "
-        f"训练困惑度 {train_ppl:.2f} | 验证困惑度 {valid_ppl:.2f} | 训练loss {train_loss:.4f} | 验证loss {valid_loss:.4f}"
-    )
-    print("-" * 89)
-
 
 writer.close()

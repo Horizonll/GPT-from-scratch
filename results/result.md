@@ -17,6 +17,8 @@ transformer: 346.8285
 
 lstm: 390.0218
 
+new lstm: 432.4815
+
 rnn: 411.1751
 
 ## 2.3.1
@@ -33,6 +35,12 @@ lstm:
 
 ```
 a <unk> from all <unk> <unk> in <unk> and <unk> <eos> but the fact <eos> in mr. month said there was in <unk> where <unk> <eos> if <unk> is out and they really was not seen with them for some <unk> <unk> but for the <unk> of a <unk> <eos> he is <unk> <eos> we 'm still that it does n't be a very step and <eos> he is n't sure any <unk> <unk> is too less in a <unk> that 's not <unk> a lot of <unk> and one <unk> says <unk> <unk> a <unk> <eos> as that many other
+```
+
+newlstm:
+
+```
+<unk> from all <unk> <unk> in <unk> and <unk> <eos> but the fact that in mr. krenz said there was in <unk> where <unk> <eos> if <unk> there <unk> and they really 'll not have with me for some <unk> <unk> but for the <unk> of them to read and he 's a <unk> that 's that it does n't be a little <eos> and we can believe that 's not it <unk> <eos> he has done a man that 's not <unk> a lot of <unk> and a <unk> says <unk> <unk> a <unk> <eos> as that this is
 ```
 
 rnn:
@@ -55,6 +63,12 @@ lstm:
 
 ```
 the meaning of life is <unk> from all <unk> after their <unk> and <unk> <eos> but the fact <eos> in mr. baker said there was in <unk> where <unk> <eos> if <unk> is out and had just the right to do them for some <unk> <unk> but for the <unk> of a democratic thing <eos> he 's a <unk> that it makes the work <eos> she had in a matter <eos> mr. <unk> is a first <unk> <unk> and he has a consultant and a <unk> of <unk> a <unk> <eos> there say he 's to <unk> the house <unk> <eos> as that many other
+```
+
+new lstm:
+
+```
+<unk> from all <unk> <unk> in <unk> and <unk> <eos> but the fact that in mr. krenz said there was in <unk> where <unk> <eos> if <unk> there <unk> and they really 'll not have with me for some <unk> <unk> but for the <unk> of them to read and he 's a <unk> that 's that it does n't be a little <eos> and we can believe that 's not it <unk> <eos> he has done a man that 's not <unk> a lot of <unk> and a <unk> says <unk> <unk> a <unk> <eos> as that this is
 ```
 
 rnn:
