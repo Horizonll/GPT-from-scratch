@@ -21,7 +21,7 @@ from trl.trainer.utils import SIMPLE_CHAT_TEMPLATE
 
 
 """
-python -i src/rlhf.py \
+python src/rlhf.py \
     --dataset_name trl-internal-testing/descriptiveness-sentiment-trl-style \
     --dataset_train_split descriptiveness \
     --learning_rate 3e-6 \
