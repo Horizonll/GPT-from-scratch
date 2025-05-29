@@ -21,7 +21,7 @@ from trl.trainer.utils import SIMPLE_CHAT_TEMPLATE
 
 
 """
-python src/rlhf.py \
+python src/ppo.py \
     --dataset_name trl-internal-testing/descriptiveness-sentiment-trl-style \
     --dataset_train_split descriptiveness \
     --learning_rate 3e-6 \
@@ -119,6 +119,19 @@ if __name__ == "__main__":
         train_dataset = prepare_dataset(train_dataset, tokenizer)
         eval_dataset = prepare_dataset(eval_dataset, tokenizer)
 
+    example_prompts = [
+        "A sunset over the mountains",
+        "The impact of climate change on polar bears",
+        "The benefits of regular exercise",
+    ]
+    print("=== RLHF前模型输出 ===")
+    for prompt in example_prompts:
+        inputs = tokenizer(prompt, return_tensors="pt").to(policy.device)
+        with torch.no_grad():
+            output_ids = policy.generate(**inputs, max_new_tokens=50)
+        output_text = tokenizer.decode(output_ids[0], skip_special_tokens=True)
+        print(f"Prompt: {prompt}\nOutput: {output_text}\n")
+
     ################
     # Training
     ################
@@ -137,3 +150,16 @@ if __name__ == "__main__":
 
     trainer.save_model(training_args.output_dir)
     trainer.generate_completions()
+
+    # ==== RLHF后：用同样的例子看模型输出 ====
+    print("=== RLHF后模型输出 ===")
+    # 重新加载RLHF后的模型
+    rlhf_policy = AutoModelForCausalLM.from_pretrained(
+        training_args.output_dir, trust_remote_code=model_args.trust_remote_code
+    ).to(policy.device)
+    for prompt in example_prompts:
+        inputs = tokenizer(prompt, return_tensors="pt").to(rlhf_policy.device)
+        with torch.no_grad():
+            output_ids = rlhf_policy.generate(**inputs, max_new_tokens=50)
+        output_text = tokenizer.decode(output_ids[0], skip_special_tokens=True)
+        print(f"Prompt: {prompt}\nOutput: {output_text}\n")

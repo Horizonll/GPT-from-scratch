@@ -124,3 +124,16 @@ The aim of this study was to determine the cause of COVID-19 in a population of 
 METHODS: A retrospective cohort study was conducted in the Netherlands. Patients with severe SARS were included in the study. Patients with severe SARS were excluded from the study because of the presence of SARS-CoV-2 virus.
 RESULTS: The mean age of the patients was 43.5 years (range, 30-54 years).
 ```
+
+# RLHF
+
+## ORPO
+
+Prompt: A sunset over the mountains
+Output: A sunset over the mountains, golden light casting long shadows on the forest floor. A small group of people walking in the forest
+
+Prompt: The impact of climate change on polar bears
+Output: The impact of climate change on polar bears is a complex and multifaceted issue that requires a deep understanding of both environmental and anthropological perspectives
+
+Prompt: The benefits of regular exercise
+Output: The benefits of regular exercise for the elderly are numerous. For example, physical activity can improve blood circulation, which can reduce the
