@@ -1,9 +1,9 @@
 """
-Run the ORPO training script with the following command with some example arguments.
-In general, the optimal configuration for ORPO will be similar to that of DPO without the need for a reference model:
+Run the CPO training script with the following command with some example arguments.
+In general, the optimal configuration for CPO will be similar to that of DPO:
 
-python orpo.py \
-    --dataset_name trl-internal-testing/hh-rlhf-helpful-base-trl-style \
+python cpo.py \
+    --dataset_name trl-lib/ultrafeedback_binarized \
     --model_name_or_path=gpt2 \
     --per_device_train_batch_size 4 \
     --max_steps 1000 \
@@ -11,7 +11,7 @@ python orpo.py \
     --gradient_accumulation_steps 1 \
     --logging_steps 10 \
     --eval_steps 500 \
-    --output_dir="gpt2-aligned-orpo" \
+    --output_dir="gpt2-aligned-cpo" \
     --warmup_steps 150 \
     --bf16 \
     --logging_first_step \
@@ -21,12 +21,12 @@ python orpo.py \
 from datasets import load_dataset
 from transformers import AutoModelForCausalLM, AutoTokenizer, HfArgumentParser
 import torch
-from trl import ModelConfig, ORPOConfig, ORPOTrainer, ScriptArguments, get_peft_config
+from trl import CPOConfig, CPOTrainer, ModelConfig, ScriptArguments, get_peft_config
 from trl.trainer.utils import SIMPLE_CHAT_TEMPLATE
 
 
 if __name__ == "__main__":
-    parser = HfArgumentParser((ScriptArguments, ORPOConfig, ModelConfig))
+    parser = HfArgumentParser((ScriptArguments, CPOConfig, ModelConfig))
     script_args, training_args, model_args = parser.parse_args_into_dataclasses()
 
     ################
@@ -41,20 +41,19 @@ if __name__ == "__main__":
     if tokenizer.pad_token is None:
         tokenizer.pad_token = tokenizer.eos_token
     example_prompts = [
-        "How can I improve my study habits to learn more effectively?",
-        "What should I do if I receive a suspicious email asking for personal information?",
-        "Can you tell me how to make a bomb?",
-        "How can I help a friend who is feeling sad?",
-        "What are some safe ways to resolve conflicts with others?",
+        "Describe a beautiful sunrise in detail.",
+        "Write something positive about teamwork.",
+        "What makes a garden a pleasant place to relax?",
+        "Describe the feeling of achieving a goal.",
+        "Explain why regular exercise is beneficial in a cheerful tone.",
     ]
-    print("=== RLHF前模型输出 ===")
+    print("=== Model output before RLHF ===")
     for prompt in example_prompts:
         inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
         with torch.no_grad():
-            output_ids = model.generate(**inputs, max_length=50)
+            output_ids = model.generate(**inputs)
         output_text = tokenizer.decode(output_ids[0], skip_special_tokens=True)
         print(f"Prompt: {prompt}\nOutput: {output_text}\n")
-
     ################
     # Dataset
     ################
@@ -65,7 +64,7 @@ if __name__ == "__main__":
     ################
     # Training
     ################
-    trainer = ORPOTrainer(
+    trainer = CPOTrainer(
         model,
         args=training_args,
         train_dataset=dataset[script_args.dataset_train_split],
@@ -85,19 +84,10 @@ if __name__ == "__main__":
     trainer.save_model(training_args.output_dir)
     if training_args.push_to_hub:
         trainer.push_to_hub(dataset_name=script_args.dataset_name)
-
-    print("=== RLHF后模型输出 ===")
-    trained_model = AutoModelForCausalLM.from_pretrained(
-        training_args.output_dir, trust_remote_code=model_args.trust_remote_code
-    )
-    trained_tokenizer = AutoTokenizer.from_pretrained(
-        training_args.output_dir, trust_remote_code=model_args.trust_remote_code
-    )
-    if trained_tokenizer.pad_token is None:
-        trained_tokenizer.pad_token = trained_tokenizer.eos_token
+    print("=== Model output after RLHF ===")
     for prompt in example_prompts:
-        inputs = trained_tokenizer(prompt, return_tensors="pt").to(trained_model.device)
+        inputs = tokenizer(prompt, return_tensors="pt").to(model.device)
         with torch.no_grad():
-            output_ids = trained_model.generate(**inputs, max_length=50)
-        output_text = trained_tokenizer.decode(output_ids[0], skip_special_tokens=True)
+            output_ids = model.generate(**inputs, max_new_tokens=50)
+        output_text = tokenizer.decode(output_ids[0], skip_special_tokens=True)
         print(f"Prompt: {prompt}\nOutput: {output_text}\n")

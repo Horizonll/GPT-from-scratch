@@ -115,9 +115,11 @@ if __name__ == "__main__":
         eval_dataset = prepare_dataset(eval_dataset, tokenizer)
 
     example_prompts = [
-        "A sunset over the mountains",
-        "The impact of climate change on polar bears",
-        "The benefits of regular exercise",
+        "Describe a beautiful sunrise in detail.",
+        "Write something positive about teamwork.",
+        "What makes a garden a pleasant place to relax?",
+        "Describe the feeling of achieving a goal.",
+        "Explain why regular exercise is beneficial in a cheerful tone.",
     ]
     print("=== RLHF前模型输出 ===")
     for prompt in example_prompts:
