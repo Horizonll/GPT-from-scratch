@@ -127,13 +127,19 @@ RESULTS: The mean age of the patients was 43.5 years (range, 30-54 years).
 
 # RLHF
 
-## ORPO
+## PPO
+
+EleutherAI/pythia-1b-deduped
 
 Prompt: A sunset over the mountains
-Output: A sunset over the mountains, golden light casting long shadows on the forest floor. A small group of people walking in the forest
+Output: A sunset over the mountains, and the snow-covered peaks of the mountains. The snow-covered
 
 Prompt: The impact of climate change on polar bears
-Output: The impact of climate change on polar bears is a complex and multifaceted issue that requires a deep understanding of both environmental and anthropological perspectives
+Output: The impact of climate change on polar bears is not yet known. The polar bears are the most vulnerable species to climate change, and
 
 Prompt: The benefits of regular exercise
-Output: The benefits of regular exercise for the elderly are numerous. For example, physical activity can improve blood circulation, which can reduce the
+Output: The benefits of regular exercise are that it reduces the risk of injury, and that it is more likely to be associated with a
+
+## ORPO
+
+gpt2

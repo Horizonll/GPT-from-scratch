@@ -21,15 +21,15 @@ from trl.trainer.utils import SIMPLE_CHAT_TEMPLATE
 
 
 """
-python src/ppo.py \
+python ppo.py \
     --dataset_name trl-internal-testing/descriptiveness-sentiment-trl-style \
     --dataset_train_split descriptiveness \
     --learning_rate 3e-6 \
     --output_dir models/minimal/ppo \
-    --per_device_train_batch_size 32 \
+    --per_device_train_batch_size 64 \
     --gradient_accumulation_steps 1 \
     --total_episodes 10000 \
-    --model_name_or_path gpt2 \
+    --model_name_or_path EleutherAI/pythia-1b-deduped \
     --missing_eos_penalty 1.0
 """
 
@@ -39,9 +39,6 @@ if __name__ == "__main__":
     script_args, training_args, model_args = parser.parse_args_into_dataclasses()
     shutil.rmtree(training_args.output_dir, ignore_errors=True)
 
-    ################
-    # Model & Tokenizer
-    ################
     torch_dtype = (
         model_args.torch_dtype
         if model_args.torch_dtype in ["auto", None]
@@ -86,9 +83,6 @@ if __name__ == "__main__":
     else:
         ref_policy = None
 
-    ################
-    # Dataset
-    ################
     dataset = load_dataset(
         script_args.dataset_name,
         name=script_args.dataset_config,
@@ -100,6 +94,7 @@ if __name__ == "__main__":
     dataset_text_field = "prompt"
 
     def prepare_dataset(dataset, tokenizer):
+        """pre-tokenize the dataset before training; only collate during training"""
 
         def tokenize(element):
             outputs = tokenizer(
@@ -128,13 +123,10 @@ if __name__ == "__main__":
     for prompt in example_prompts:
         inputs = tokenizer(prompt, return_tensors="pt").to(policy.device)
         with torch.no_grad():
-            output_ids = policy.generate(**inputs, max_new_tokens=50)
+            output_ids = policy.generate(**inputs)
         output_text = tokenizer.decode(output_ids[0], skip_special_tokens=True)
         print(f"Prompt: {prompt}\nOutput: {output_text}\n")
 
-    ################
-    # Training
-    ################
     trainer = PPOTrainer(
         args=training_args,
         processing_class=tokenizer,
@@ -149,11 +141,12 @@ if __name__ == "__main__":
     trainer.train()
 
     trainer.save_model(training_args.output_dir)
+    if training_args.push_to_hub:
+        trainer.push_to_hub(dataset_name=script_args.dataset_name)
+
     trainer.generate_completions()
 
-    # ==== RLHF后：用同样的例子看模型输出 ====
     print("=== RLHF后模型输出 ===")
-    # 重新加载RLHF后的模型
     rlhf_policy = AutoModelForCausalLM.from_pretrained(
         training_args.output_dir, trust_remote_code=model_args.trust_remote_code
     ).to(policy.device)

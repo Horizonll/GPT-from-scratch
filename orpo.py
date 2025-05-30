@@ -2,10 +2,9 @@
 Run the ORPO training script with the following command with some example arguments.
 In general, the optimal configuration for ORPO will be similar to that of DPO without the need for a reference model:
 
-# regular:
-python src/orpo.py \
+python orpo.py \
     --dataset_name trl-internal-testing/hh-rlhf-helpful-base-trl-style \
-    --model_name_or_path gpt2 \
+    --model_name_or_path=gpt2 \
     --per_device_train_batch_size 4 \
     --max_steps 1000 \
     --learning_rate 8e-6 \
@@ -18,27 +17,6 @@ python src/orpo.py \
     --bf16 \
     --logging_first_step \
     --no_remove_unused_columns
-
-# peft:
-python src/orpo.py \
-    --dataset_name trl-internal-testing/hh-rlhf-helpful-base-trl-style \
-    --model_name_or_path gpt2 \
-    --per_device_train_batch_size 4 \
-    --max_steps 1000 \
-    --learning_rate 8e-5 \
-    --gradient_accumulation_steps 1 \
-    --logging_steps 10 \
-    --eval_steps 500 \
-    --output_dir="gpt2-lora-aligned-orpo" \
-    --optim rmsprop \
-    --warmup_steps 150 \
-    --report_to wandb \
-    --bf16 \
-    --logging_first_step \
-    --no_remove_unused_columns \
-    --use_peft \
-    --lora_r=16 \
-    --lora_alpha=16
 """
 
 from datasets import load_dataset
@@ -52,6 +30,9 @@ if __name__ == "__main__":
     parser = HfArgumentParser((ScriptArguments, ORPOConfig, ModelConfig))
     script_args, training_args, model_args = parser.parse_args_into_dataclasses()
 
+    ################
+    # Model & Tokenizer
+    ################
     model = AutoModelForCausalLM.from_pretrained(
         model_args.model_name_or_path, trust_remote_code=model_args.trust_remote_code
     )
@@ -73,10 +54,16 @@ if __name__ == "__main__":
         output_text = tokenizer.decode(output_ids[0], skip_special_tokens=True)
         print(f"Prompt: {prompt}\nOutput: {output_text}\n")
 
+    ################
+    # Dataset
+    ################
     dataset = load_dataset(script_args.dataset_name, name=script_args.dataset_config)
     if tokenizer.chat_template is None:
         tokenizer.chat_template = SIMPLE_CHAT_TEMPLATE
 
+    ################
+    # Training
+    ################
     trainer = ORPOTrainer(
         model,
         args=training_args,
@@ -90,8 +77,10 @@ if __name__ == "__main__":
         peft_config=get_peft_config(model_args),
     )
 
+    # train and save the model
     trainer.train()
 
+    # Save and push to hub
     trainer.save_model(training_args.output_dir)
     if training_args.push_to_hub:
         trainer.push_to_hub(dataset_name=script_args.dataset_name)
